@@ -1,5 +1,5 @@
-# fresheng
-One Paragraph of project description goes here
+# freshlang
+Small application that helps learners improve their ability to hear and cultivate English vocabulary through pairs of sentences in movies or short music videos
 
 ## Getting Started
 
