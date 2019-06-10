@@ -10,7 +10,10 @@ These instructions will get you a copy of the project up and running on your loc
 What things you need to install the software and how to install them
 
 ```
-Give examples
+Python 3.x
+PyQt5
+SQlite3
+K-Lite Codec Pack Basic
 ```
 
 ### Installing
@@ -20,7 +23,10 @@ A step by step series of examples that tell you how to get a development env run
 Say what the step will be
 
 ```
-Give the example
+pip install PyQt5
+pip install pysqlite3
+[Codec](http://files2.codecguide.com/K-Lite_Codec_Pack_1499_Basic.exe) - multimedia playback
+
 ```
 
 And repeat
