@@ -1,4 +1,4 @@
-# Learn-English
+# fresheng
 One Paragraph of project description goes here
 
 ## Getting Started
@@ -57,9 +57,8 @@ Add additional notes about how to deploy this on a live system
 
 ## Built With
 
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [Maven](https://maven.apache.org/) - Dependency Management
-* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
+* [PyQt5](https://pypi.org/project/PyQt5/) - The interface used
+* [SQLite3](https://docs.python.org/2/library/sqlite3.html) - Build Database to storage data as couple english and vietnamese
 
 ## Contributing
 
