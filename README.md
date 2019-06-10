@@ -13,7 +13,7 @@ What things you need to install the software and how to install them
 Python 3.x
 PyQt5
 SQlite3
-K-Lite Codec Pack Basic
+K-Lite Codec Pack Basic - multimedia playback
 ```
 
 ### Installing
@@ -23,10 +23,10 @@ A step by step series of examples that tell you how to get a development env run
 Say what the step will be
 
 ```
+download [python3.x](https://www.python.org/downloads/)
 pip install PyQt5
 pip install pysqlite3
-[Codec](http://files2.codecguide.com/K-Lite_Codec_Pack_1499_Basic.exe) - multimedia playback
-
+[Codec](http://files2.codecguide.com/K-Lite_Codec_Pack_1499_Basic.exe) 
 ```
 
 And repeat
