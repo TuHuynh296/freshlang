@@ -32,7 +32,7 @@ run application with file executive LearnEnglish.py in cmd:
 python LearningEnglish.py
 ```
 
-###interface of application
+### interface of application
 
 ![typing](https://github.com/leavin296/freshlang/blob/master/demo/typing.png)
 ![learn with video](https://github.com/leavin296/freshlang/blob/master/demo/learn_with_video.png)
