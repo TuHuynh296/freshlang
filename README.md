@@ -28,7 +28,7 @@ Install from PyPI
 
 ## Running the tests
 ```
-run application with file executive LearnEnglish.py in cmd: 
+On Windows run application with file executive LearnEnglish.py in cmd, if you're using Linux or Mac in terminal you have to insert 'sudo' in front of command:
 python LearningEnglish.py
 ```
 
