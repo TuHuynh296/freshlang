@@ -20,7 +20,7 @@ K-Lite Codec Pack Basic - multimedia playback
 
 A step by step series of examples that tell you how to get a development env running
 
-Say what the step will be
+Install from PyPI
 * [python3.x](https://www.python.org/downloads/)
 * pip install PyQt5
 * pip install pysqlite3
