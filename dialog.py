@@ -17,7 +17,7 @@ class Ui_Dialog(QtWidgets.QDialog):
 
     def editDataBase(self, Dialog):
         def edit():
-            if self.parent.label == self.parent.currentLabel:
+            if self.lang_selected == 'VIE':
                 self.parent.parent.DictDB.update_lang('VIE', self.lineEdit.text(), self.parent.label.text())
                 self.parent.label.setText(self.lineEdit.text())
                 Dialog.close()
