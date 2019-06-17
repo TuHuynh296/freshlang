@@ -232,7 +232,6 @@ class VideoShow(QtWidgets.QWidget):
             text = value.text.replace('\n', ' ').replace("\"", "''")
             checkbox.setText(text.replace('\xa0', ' '))
             checkbox.setFixedHeight(50)
-            #checkbox.setFixedWidth(500)
             checkbox.setFont(QtGui.QFont('Times New Roman', 10))
             checkbox.clicked.connect(self.eventSubCheckBox(checkbox))
             checkbox.setFocusPolicy(Qt.NoFocus)

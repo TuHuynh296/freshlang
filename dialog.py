@@ -24,7 +24,7 @@ class Ui_Dialog(QtWidgets.QDialog):
             else:
                 eng = self.parent.parent.DictDB.select_lang_by_rowid('ENG', self.parent.parent.rowid)
                 self.parent.parent.DictDB.update_lang('ENG', self.lineEdit.text(), eng)
-                self.parent.label_2.setText(self.lineEdit.text())
+                #self.parent.label_2.setText(self.lineEdit.text())
                 Dialog.close()
         return edit
 

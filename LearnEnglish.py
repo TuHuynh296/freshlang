@@ -8,11 +8,6 @@ import numpy as np
 import sys
 import re
 
-# class CongratWindow(QtWidgets.QMainWindow):
-#     def __init__(self):
-#         super().__init__()
-#         self.ui = Ui_Congrat()
-
 
 class ApplicationWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -20,7 +15,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             # ~== super(ApplicationWindow, self).__init__()
             # phải gọi khởi tạo từ lớp cha thì lớp con mới kế thừa được
         self.ui = Ui_MainWindow(self)
-            # ui kế thừa từ class này, và class này kế thừa thư QMainWindow 
+            # ui kế thừa từ class này, và class này kế thừa từ QMainWindow 
         self.ui.setupUi(self)
         self.DictDB = SQLiteHelper('DictDB.db')
         self.listen = False
@@ -41,7 +36,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.listen = False
             id = rowids[np.random.randint(10)][0]
             self.SetButtonIcon(self.ui.toolButton, 'edit')
-            self.ui.label_2.setText('Result')
+            self.ui.addWordButtonToLayoutEng('Result')
             self.ui.toolButton_3.show()  
         elif self.count == 3:
             id = rowids[np.random.randint(10, len(rowids))][0]
@@ -64,8 +59,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         if not self.listen:
             sentence = self.DictDB.select_lang_by_rowid('VIE', index)
             self.ui.label.setText(sentence)    
-        self.ui.label_2.setText('Result')
-        # "<span style=\" font-size:24pt; font-weight:600; color:#000000;\" >youare</span><span style=\" font-size:24pt; font-weight:600; color:#ff0000;\" >okbaby</span>"
+        self.ui.addWordButtonToLayoutEng('Result')
 
         # Tắt phím sửa câu tiếng anh, khi nào enter lineEdit thì mở lại
         self.ui.toolButton_3.setEnabled(False)
@@ -96,23 +90,36 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         right = findPos(-1, -(len(s1)+1), -1)
         return [left, right]
     
-    def ChangeColorForString(self, string, size, weight, color):
-        return "<span style=\" font-size:%s; font-weight:%s; color:%s;\" >%s</span>"%(size, weight, color, string)
+    def ChangeColorForWordButton(self, word_buttons, background, color):
+        for wb in word_buttons:
+            wb.setStyleSheet("background-color: %s; color: %s"%(background, color))
 
-    def PaintColorForSentence(self, sentence, left, right):
-        head = ' '.join(sentence[:left])
+    def PaintColorWordButtons(self, word_buttons, left, right):
+        head = word_buttons[:left]
         if right == -1:
-            middle = ' '.join(sentence[left:])
-            tail = ''
+            middle = word_buttons[left:]
+            tail = []
         else:
-            middle = ' '.join(sentence[left:right+1])
-            tail = ' '.join(sentence[right+1:])
+            middle = word_buttons[left:right+1]
+            tail = word_buttons[right+1:]
         
-        head = self.ChangeColorForString(head, 24, 600, '#000000')
-        middle = self.ChangeColorForString(middle, 24, 600, '#ff0000')
-        tail = self.ChangeColorForString(tail, 24, 600, '#000000')
+        self.ChangeColorForWordButton(head, "rgb(255, 255, 255)", "rgb(0, 0, 0)")
+        self.ChangeColorForWordButton(middle, "rgb(255, 0, 0)", "rgb(255, 255, 255)")
+        self.ChangeColorForWordButton(tail, "rgb(255, 255, 255)", "rgb(0, 0, 0)")
 
-        return ' '.join([head, middle, tail])
+    def setStyleTextHTML(self, text, color = '#000000', size='10', weight = '0', style = 'none', decoration = 'none'):
+        text = ("""<p style=" margin-top:0px; 
+                    margin-bottom:0px; 
+                    margin-left:0px; 
+                    margin-right:0px; 
+                    -qt-block-indent:0; 
+                    text-indent:0px;">
+                    <span style=" font-size:%spt; 
+                    font-weight:%s; 
+                    font-style:%s; 
+                    text-decoration: %s; 
+                    color:%s;">%s</span></p>"""%(size, weight, style, decoration, color, text))
+        return text
 
     def Reload(self):
         self.count = 0
@@ -122,18 +129,21 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ui.progressBar.setValue(0)
         self.ui.lineEdit.setText('')
         self.ui.pressEnterTwiceLineEdit = False
+        self.ui.text_browser.hide()
+        self.EnableWidgetsInLayout(self.ui.hz_image_eng, False)
     
-    def GetEngResult(self):
-        return self.DictDB.select_lang_by_rowid('ENG', self.rowid)
+    def GetLang(self, lang):
+        return self.DictDB.select_lang_by_rowid(lang, self.rowid)
 
     def TextToSpeech(self, text):
+        text = text.replace('_', ' ')
         speak = wincl.Dispatch("SAPI.SpVoice")
         speak.Speak(text)
 
     def BellRing(self, type):
         if type == 1:
             self.sound = QtMultimedia.QSound('assets/correct.wav')
-        elif type == 2:
+        elif type == 2: 
             self.sound = QtMultimedia.QSound('assets/wrong.wav')
         else:
             self.sound = QtMultimedia.QSound('assets/congrat.wav')
@@ -145,6 +155,22 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         button.setIcon(icon)
         button.setIconSize(QtCore.QSize(32,32))
 
+    def deleteWidgetsInLayout(self, layout):
+        for i in reversed(range(layout.count())): 
+            widgetToRemove = layout.itemAt(i).widget()
+            # remove it from the layout list
+            layout.removeWidget(widgetToRemove)
+            # remove it from the gui
+            widgetToRemove.setParent(None)
+
+    def EnableWidgetsInLayout(self, layout, turn):
+        for i in reversed(range(layout.count())): 
+            widget = layout.itemAt(i).widget()
+            if turn:
+                widget.show()
+            else:
+                widget.hide()
+
 
 # s1 = "satan's mnist".split(' ')
 # s2 = "satan's minions".split(' ')
@@ -154,7 +180,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 # app = QtWidgets.QApplication(sys.argv)
 # appwindow = ApplicationWindow()
 # pos = appwindow.FindPosErrorWords(s1,s2)
-# appwindow.PaintColorForSentence(s2, pos[0], pos[1])
+# appwindow.PaintColorWordButtons(s2, pos[0], pos[1])
 
 app = QtWidgets.QApplication(sys.argv)
 appwindow = ApplicationWindow()

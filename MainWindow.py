@@ -11,6 +11,11 @@ from dialog import *
 from congratulation import *
 from VideoShow import *
 import re
+from bs4 import BeautifulSoup
+import requests
+import urllib
+import functools
+import random
 
 # central widget sẽ là tham chiếu của tất cả các thành phần trong mainwindow
 # vertical layout sẽ add các layout con khác
@@ -22,6 +27,7 @@ class Ui_MainWindow(object):
         self.parent = parent
         self.pressEnterTwiceLineEdit = False
         self.uiDialog = Ui_Dialog(self) # từ dialog
+        self.word_buttons = []
         # tham chiếu parent để truyền qua lại dữ liệu
         #self.uiDialog.setupUi(self.window) # kế thừa từ QDialog
             # na ná như bên lớp applycation trong learnenglish.py
@@ -34,33 +40,114 @@ class Ui_MainWindow(object):
         self.congratwindow = Congrat_Window(self)
         self.congratwindow.show()
 
-    def OpenWindow(self, label):
+    def OpenWindow(self, lang):
         def open():
             if self.parent.listen:
-                self.parent.TextToSpeech(self.parent.DictDB.select_lang_by_rowid('ENG', self.parent.rowid))
+                self.parent.TextToSpeech(self.parent.GetLang('ENG'))
             else:
-                if label == self.label:
-                    self.uiDialog.lineEdit.setText(label.text())
+                if lang == 'VIE':
+                    self.uiDialog.lineEdit.setText(self.parent.GetLang('VIE'))
+                    self.uiDialog.lang_selected = 'VIE'
                 else:
-                    result = self.parent.DictDB.select_lang_by_rowid('ENG', self.parent.rowid)
-                    self.uiDialog.lineEdit.setText(result)
+                    self.uiDialog.lineEdit.setText(self.parent.GetLang('ENG'))
+                    self.uiDialog.lang_selected = 'ENG'
+
                     # gán text của lable vào text của textEdit để chỉnh sửa !!!
                 # Giữ label hiện tại để thay đổi trong dialog
-                self.currentLabel = label
                 self.uiDialog.show()
                 # sau khi khởi tạo đối tượng QMainWindow() là một dialog, ta sẽ show nó 
         return open
             # dùng hàm open lồng trong OpenWindow để mục đích cuối cùng là trả về địa chỉ hàm
                 # hợp lệ cho event
             # Nếu không dùng hàm lồng nhau trả về địa chỉ hàm nó sẽ ngầm hiểu label là kiểu bool và ko có thuộc tính text !!!
-            
+    
+
+    def addWordButtonToLayoutEng(self, text):
+        text = re.sub(r"[^\w_']", ' ', text).strip()
+        text = re.sub(r'\s+', ' ', text)
+        layout = self.hz_vocabulary_eng
+        # del widgets from hz_vocabulary_eng
+        self.parent.deleteWidgetsInLayout(layout)
+        self.word_buttons = []
+
+        # add widgets to hz_vocabulary_eng
+        list_word = text.split(' ')
+        for i, word in enumerate(list_word):
+            word_button = QtWidgets.QPushButton(self.centralwidget)
+            word_button.setObjectName('word_button%s'%i)
+            # fix callable objects in loop
+            slot = functools.partial(self.translate, word)
+            word_button.clicked.connect(slot)
+            self.word_buttons.append(word_button)
+            word_button.setText(word)
+            font = QtGui.QFont()
+            font.setPointSize(12)
+            font.setFamily("Time News Roman")
+            word_button.setFont(font)
+            layout.addWidget(word_button)
+        
+    def translate(self, word):
+        # show text_browser and hz_image_eng
+        self.text_browser.show()
+        self.parent.EnableWidgetsInLayout(self.hz_image_eng, True)
+        self.getImageForWord(word)
+        self.hz_image_eng
+        self.text_browser.clear()
+        word = re.sub(r"[^-'\w]", ' ', word)
+        word = word.replace('_', '-')
+        if word == '':
+            return
+        page = requests.get("https://dict.laban.vn/find?type=1&query=%s"%(word))
+        soup = BeautifulSoup(page.content, 'html.parser')
+        spelling = soup.find('h2', {'class':'fl'}).text
+        content = soup.find('div',{'id':'content_selectable', 'class':'content'})
+        if content == None:
+            return
+        word_type = content.find_all('div', {'class':'bg-grey bold font-large m-top20'})
+        word_type = [wt.find('span').text for wt in word_type]
+        content = [w.replace('\xa0', ' ') for w in content.text.split('\n')][1:len(content)-1]
+        self.text_browser.append(self.parent.setStyleTextHTML(word, color= '#005500', size = '17'))
+        self.text_browser.append(self.parent.setStyleTextHTML(spelling))
+        for line in content:
+            if line in word_type:
+                text = self.parent.setStyleTextHTML(line, "#5500ff", '12', '600', style = 'italic')
+            else:
+                text = self.parent.setStyleTextHTML(line)
+            self.text_browser.append(text)
+
+        self.text_browser.moveCursor(QtGui.QTextCursor.Start)
+
+    def getImageForWord(self, word):
+        self.parent.deleteWidgetsInLayout(self.hz_image_eng)
+        page = requests.get('https://vn.images.search.yahoo.com/search/images;_ylt=AwrwJRgGagddlXoAonJtUwx.;_ylu=X3oDMTBsZ29xY3ZzBHNlYwNzZWFyY2gEc2xrA2J1dHRvbg--;_ylc=X1MDMjExNDczNzAwNQRfcgMyBGFjdG4DY2xrBGNzcmNwdmlkA2xUc2pLVEV3TGpKUmsyV1JYQl9DaUFKdU1UUXVNUUFBQUFCaG1UMEQEZnIDeWZwLXQEZnIyA3NhLWdwBGdwcmlkA3QwclBDM1FhVEFHSG5XdDZITWpneEEEbl9zdWdnAzAEb3JpZ2luA3ZuLmltYWdlcy5zZWFyY2gueWFob28uY29tBHBvcwMwBHBxc3RyAwRwcXN0cmwDBHFzdHJsAzgEcXVlcnkDdHdlZXplcnMEdF9zdG1wAzE1NjA3NjcwNzU-?p=%s&fr=yfp-t&fr2=sb-top-vn.images.search&ei=UTF-8&n=60&x=wrt'%
+                        (word))
+        soup = BeautifulSoup(page.content, 'html.parser')
+        images = soup.find_all('img')
+        images = [img.attrs['src'] for img in images if 'src' in img.attrs]
+
+        if len(images)<4:
+            max = len(images)
+        else:
+            max = 4
+        for _ in range(max):
+            i = random.randint(0,len(images)-1)
+            data = urllib.request.urlopen(images[i]).read()
+            image = QtGui.QImage()
+            image.loadFromData(data)
+            lbl = QtWidgets.QLabel(self.centralwidget)
+            lbl.setPixmap(QtGui.QPixmap(image).scaled(200,200))
+            #lbl.setFixedSize(QtCore.QSize(200,200))
+            self.hz_image_eng.addWidget(lbl)
+            del images[i]
+
+
     def show(self, result):
         self.toolButton_3.setEnabled(True)
         self.toolButton_4.setEnabled(True)
         self.pressEnterTwiceLineEdit = True
 
         # so khớp 2 kết quả
-        # sửa sai lần hai cho các từ giống như như 's ~ is, 're ~ are
+        # sửa sai lần hai cho các từ giống như như 's ~ is, 're ~ are ...
         if self.parent.checkSentenceEncore:
             s1 = self.parent.ConvertAcronyms(result)
             s2 = self.parent.ConvertAcronyms(self.lineEdit.text())
@@ -76,8 +163,8 @@ class Ui_MainWindow(object):
             self.parent.DictDB.update_score(self.parent.DictDB.get_score(result) + 1, result)
             self.numTrueSentence+=1
             self.progressBar.setFormat('%s/20'%(str(self.numTrueSentence)))
-            self.label_2.setText(result)
-            self.label_2.setStyleSheet('color: blue;')
+
+            self.addWordButtonToLayoutEng(result)
             if self.numTrueSentence == 20:
                 self.OpenCongrat()
                 self.parent.BellRing(3)
@@ -98,9 +185,9 @@ class Ui_MainWindow(object):
                 pos = self.parent.FindPosErrorWords(s1, s2)
             else:
                 pos = self.parent.FindPosErrorWords(s2, s1)
-            self.label_2.setText(self.parent.PaintColorForSentence(result.split(' '), pos[0], pos[1]))
+            self.addWordButtonToLayoutEng(result)
+            self.parent.PaintColorWordButtons(self.word_buttons, pos[0], pos[1])
             self.parent.checkSentenceEncore = False
-            #self.label_2.setStyleSheet('color: orange;')
 
     def showResult(self):
         # Không show result nếu chưa nhập gì cả hoặc chỉ toàn là khoảng trắng
@@ -111,29 +198,32 @@ class Ui_MainWindow(object):
                 QtWidgets.QMessageBox.information(None, 'WARNING', 'Please type corectly english translation !!!')
             else:
                 if self.parent.listen == True:
-                    self.label.setText(self.parent.DictDB.select_lang_by_rowid('VIE', self.parent.rowid))
+                    self.label.setText(self.parent.GetLang('VIE'))
                     self.parent.SetButtonIcon(self.toolButton, 'edit')
                     self.parent.listen = False
                     self.toolButton_3.show()
-                result = self.parent.GetEngResult()
+                result = self.parent.GetLang('ENG')
                 # Thread(target= self.show(result)).start()
                 # Thread(target= self.parent.TextToSpeech(result)).start()
                 self.show(result)
                 self.parent.TextToSpeech(result)
-        else:
+        else: # lần enter thứ 2
                 self.parent.LoadEngSentence()
                 self.pressEnterTwiceLineEdit = False
                 self.lineEdit.setText('')
-                self.label_2.setStyleSheet('color: black;')    
+                self.parent.EnableWidgetsInLayout(self.hz_image_eng, False)
+                self.text_browser.hide()
+                # self.label_2.setStyleSheet('color: black;')    
 
     def DeleteCouple(self, MainWindow):
         def delete():
             reply = QtWidgets.QMessageBox.question(MainWindow, 'Message', "Do you want to delete this couple?", QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
             if reply == QtWidgets.QMessageBox.Yes:
                 self.parent.DictDB.deleteById(self.parent.rowid)     
-                self.parent.LoadEngSentence()
-                          
+                self.parent.LoadEngSentence()                 
         return delete
+
+
     def setupUi(self, MainWindow):
         
         MainWindow.setObjectName("MainWindow")
@@ -163,6 +253,17 @@ class Ui_MainWindow(object):
         self.verticalLayout.addLayout(self.horizontalLayout)
         self.verticalLayout.addLayout(self.horizontalLayout_2)
         self.verticalLayout.addLayout(self.horizontalLayout_3)
+
+        self.text_browser = QtWidgets.QTextBrowser(self.centralwidget)
+        self.text_browser.hide()
+        self.verticalLayout.addWidget(self.text_browser)
+        # self.text_browser.setText('ok baby\nyou are the one for me\n')
+        # self.text_browser.setHtml("""My image :<br /><p style="text-align:center;"><img src="assets/enter.png" height="100" width="100"/>
+        #                             <img src="assets/speak.png" height="100" width="100"/>
+        #                             """)
+        # self.text_browser.setFixedHeight(250)
+
+
         fontLabel1 = QtGui.QFont()
         fontLabel1.setPointSize(14)
         fontLabel1.setBold(True)
@@ -193,7 +294,7 @@ class Ui_MainWindow(object):
         # Truyền tham số vào hàm sự kiện !!!
         # Vì sự kiện cần một địa chỉ hàm ko phải là hàm thực thi
         # nên sẽ dùng hàm lồng nhau 
-        self.toolButton.clicked.connect(self.OpenWindow(self.label))
+        self.toolButton.clicked.connect(self.OpenWindow('VIE'))
 
         self.lineEdit = QtWidgets.QLineEdit(self.centralwidget)
 
@@ -227,26 +328,17 @@ class Ui_MainWindow(object):
         #Event toolButton_2
         self.toolButton_2.clicked.connect(self.showResult)
 
-        # self.work = Worker()
-        # self.thread = QThread()
-        # self.thread.started.connect(self.worker.work) # <--new line, make sure work starts.
-        # self.thread.start()
 
         # ProgressBar
         self.progressBar = QtWidgets.QProgressBar(self.centralwidget)
         self.progressBar.setProperty("value", 0)
         self.progressBar.setObjectName("progressBar")
-        self.verticalLayout.addWidget(self.progressBar)
 
         # set text progressbar
         self.numTrueSentence = 0
         self.progressBar.setTextVisible(True)
         self.progressBar.setFormat('0/20')
         
-        self.label_2 = QtWidgets.QLabel(self.centralwidget)
-        self.label_2.setFont(fontLabel2)
-        self.label_2.setObjectName("label_2")
-        self.label_2.setWordWrap(True)
 
         icon3 = QtGui.QIcon()
         icon3.addPixmap(QtGui.QPixmap("assets/speak.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
@@ -273,16 +365,27 @@ class Ui_MainWindow(object):
         self.toolButton_5.setIconSize(QtCore.QSize(16,16))
         self.toolButton_5.setObjectName('toolButton_5')
         self.toolButton_5.clicked.connect(self.DeleteCouple(MainWindow))
-        self.verticalLayout.addWidget(self.toolButton_5)
 
 
-        self.toolButton_4.clicked.connect(self.OpenWindow(self.label_2))
+        self.toolButton_4.clicked.connect(self.OpenWindow('ENG'))
 
         self.verticalLayout_2.addWidget(self.toolButton_4)
-        self.horizontalLayout_3.addWidget(self.label_2)
+        self.verticalLayout_2.setAlignment(Qt.AlignRight)
+
+        self.hz_vocabulary_eng = QtWidgets.QHBoxLayout()
+        self.hz_vocabulary_eng.setObjectName('horizontalLayout_eng')
+        self.hz_vocabulary_eng.setAlignment(Qt.AlignLeft)
+
+        self.horizontalLayout_3.addLayout(self.hz_vocabulary_eng)
         self.horizontalLayout_3.addLayout(self.verticalLayout_2)
 
-        self.toolButton_3.clicked.connect(lambda: self.parent.TextToSpeech(self.parent.GetEngResult()))
+        self.hz_image_eng = QtWidgets.QHBoxLayout()
+        self.hz_image_eng.setObjectName('horizontalLayoutImageEng')
+        self.verticalLayout.addLayout(self.hz_image_eng)
+        self.verticalLayout.addWidget(self.progressBar)
+        self.verticalLayout.addWidget(self.toolButton_5)
+
+        self.toolButton_3.clicked.connect(lambda: self.parent.TextToSpeech(self.parent.GetLang('ENG')))
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -321,7 +424,6 @@ class Ui_MainWindow(object):
         self.label.setText(_translate("MainWindow", "Vietnamese Sentence"))
         self.toolButton.setText(_translate("MainWindow", "Edit Sentence"))
         self.toolButton_2.setText(_translate("MainWindow", "Check"))
-        self.label_2.setText(_translate("MainWindow", "Result"))
         self.toolButton_3.setText(_translate("MainWindow", "Edit result"))
         self.menuFile.setTitle(_translate("MainWindow", "Option"))
         self.actionReload.setText(_translate("MainWindow", "Reload"))
@@ -329,12 +431,3 @@ class Ui_MainWindow(object):
         self.actionVideo.setText(_translate("MainWindow", "Learn with Video"))
 
 
-
-# if __name__ == "__main__":
-#     import sys
-#     app = QtWidgets.QApplication(sys.argv)
-#     MainWindow = QtWidgets.QMainWindow()
-#     ui = Ui_MainWindow()
-#     ui.setupUi(MainWindow)
-#     MainWindow.show()
-#     sys.exit(app.exec_())
