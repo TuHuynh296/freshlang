@@ -107,7 +107,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ChangeColorForWordButton(middle, "rgb(255, 0, 0)", "rgb(255, 255, 255)")
         self.ChangeColorForWordButton(tail, "rgb(255, 255, 255)", "rgb(0, 0, 0)")
 
-    def setStyleTextHTML(self, text, color = '#000000', size='10', weight = '0', style = 'none', decoration = 'none'):
+    def setStyleTextHTML(self, sentence, color = '#000000', size='10', weight = '0', style = 'none', decoration = 'none'):
         text = ("""<p style=" margin-top:0px; 
                     margin-bottom:0px; 
                     margin-left:0px; 
@@ -118,7 +118,23 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     font-weight:%s; 
                     font-style:%s; 
                     text-decoration: %s; 
-                    color:%s;">%s</span></p>"""%(size, weight, style, decoration, color, text))
+                    color:%s;">%s</span></p>"""%(size, weight, style, decoration, color, sentence))
+        return text
+
+    
+    def addTagScroll(self, sentence, key, syntax, name, font_size, decoration, color): 
+        #key = 'href | name', syntax = '# |', name = order index
+        text = ("""<p style=" margin-top:0px; 
+                    margin-bottom:0px; 
+                    margin-left:0px; 
+                    margin-right:0px; 
+                    -qt-block-indent:0; 
+                    text-indent:0px;">
+                    <a %s="%s%s">
+                    <span style=" font-size:%spt; 
+                    text-decoration: %s; 
+                    color:#%s;
+                    ">%s</span></p>"""%(key, syntax, name, font_size, decoration, color, sentence))
         return text
 
     def Reload(self):

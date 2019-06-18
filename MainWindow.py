@@ -108,12 +108,18 @@ class Ui_MainWindow(object):
         content = [w.replace('\xa0', ' ') for w in content.text.split('\n')][1:len(content)-1]
         self.text_browser.append(self.parent.setStyleTextHTML(word, color= '#005500', size = '17'))
         self.text_browser.append(self.parent.setStyleTextHTML(spelling))
+        for i, wt in enumerate(word_type):
+            self.text_browser.append(self.parent.addTagScroll(wt, 'href', '#', i, 8, 'underline', '0000ff'))
+        #self.text_browser.append('<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><a href="#scroll"><span style=" font-size:8pt; text-decoration: underline; color:#0000ff;">Danh từ</span></p>')
+        text = ''
+        count = 0
         for line in content:
             if line in word_type:
-                text = self.parent.setStyleTextHTML(line, "#5500ff", '12', '600', style = 'italic')
+                self.text_browser.append(self.parent.addTagScroll('\n' + line, 'name', '', count, 14, 'none', 'ffaa00'))
+                count+=1
             else:
                 text = self.parent.setStyleTextHTML(line)
-            self.text_browser.append(text)
+                self.text_browser.append(text)
 
         self.text_browser.moveCursor(QtGui.QTextCursor.Start)
 
