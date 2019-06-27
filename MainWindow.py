@@ -31,6 +31,7 @@ class Ui_MainWindow(object):
         # tham chiếu parent để truyền qua lại dữ liệu
         #self.uiDialog.setupUi(self.window) # kế thừa từ QDialog
             # na ná như bên lớp applycation trong learnenglish.py
+        self.translated_word = ''
 
     def OpenVideo(self):
         self.uiVideo = VideoShow(self)
@@ -63,7 +64,7 @@ class Ui_MainWindow(object):
     
 
     def addWordButtonToLayoutEng(self, text):
-        text = re.sub(r"[^\w_']", ' ', text).strip()
+        text = re.sub(r"[^\w\-']", ' ', text).strip()
         text = re.sub(r'\s+', ' ', text)
         layout = self.hz_vocabulary_eng
         # del widgets from hz_vocabulary_eng
@@ -88,12 +89,17 @@ class Ui_MainWindow(object):
         
     def translate(self, word):
         # show text_browser and hz_image_eng
+        if self.translated_word == word:
+            self.getImageForWord(word)
+            return
+
+        self.translated_word = word
         self.text_browser.show()
         self.parent.EnableWidgetsInLayout(self.hz_image_eng, True)
         self.getImageForWord(word)
         self.hz_image_eng
         self.text_browser.clear()
-        word = re.sub(r"[^-'\w]", ' ', word)
+        word = re.sub(r"[^-'\w]", ' ', word).lower()
         word = word.replace('_', '-')
         if word == '':
             return
@@ -110,7 +116,6 @@ class Ui_MainWindow(object):
         self.text_browser.append(self.parent.setStyleTextHTML(spelling))
         for i, wt in enumerate(word_type):
             self.text_browser.append(self.parent.addTagScroll(wt, 'href', '#', i, 8, 'underline', '0000ff'))
-        #self.text_browser.append('<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><a href="#scroll"><span style=" font-size:8pt; text-decoration: underline; color:#0000ff;">Danh từ</span></p>')
         text = ''
         count = 0
         for line in content:
@@ -118,7 +123,12 @@ class Ui_MainWindow(object):
                 self.text_browser.append(self.parent.addTagScroll('\n' + line, 'name', '', count, 14, 'none', 'ffaa00'))
                 count+=1
             else:
-                text = self.parent.setStyleTextHTML(line)
+                temp = word[:int(len(word)/2)]
+                temp = word if len(temp)<=2 else temp
+                if line.lower().find(temp)!=-1:
+                    text = self.parent.setStyleTextHTML(line, color= '#aa55ff', style='italic', weight = '600')
+                else:
+                    text = self.parent.setStyleTextHTML(line)
                 self.text_browser.append(text)
 
         self.text_browser.moveCursor(QtGui.QTextCursor.Start)
