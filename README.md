@@ -33,10 +33,20 @@ python LearningEnglish.py
 ```
 
 ### interface of application
-
+```
+Typing and check sentence, here is missing word 'the'.
+Click one of those words of result will translate it and show relevant image 
+```
 ![typing](https://github.com/leavin296/freshlang/blob/master/demo/typing.png)
+```
+Run subtitles in parallel with the speech of the character
+```
 ![learn with video](https://github.com/leavin296/freshlang/blob/master/demo/learn_with_video.png)
-
+```
+Full screen. 
+Switch unique engsub or vietsub with key 'E', 'V'. Pressed key 'S' to hide or show bilingual sentence pair
+```
+![fullscreen](https://github.com/leavin296/freshlang/blob/master/demo/fullscreen.png)
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
