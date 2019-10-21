@@ -7,6 +7,7 @@ import time
 import numpy as np
 import sys
 import re
+from threading import Thread
 
 
 class ApplicationWindow(QtWidgets.QMainWindow):
@@ -17,11 +18,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow(self)
             # ui kế thừa từ class này, và class này kế thừa từ QMainWindow 
         self.ui.setupUi(self)
-        self.DictDB = SQLiteHelper('DictDB.db')
+        self.DictDB = SQLiteHelper('D:/Python/PyQt and Qt Designer/Learn English/DictDB.db')
         self.listen = False
+        self.s2t = False
         self.checkSentenceEncore = False
+        self.firstStart = False
         self.count = 0
-        self.acronyms = [["'s ", ' is '], ["'re ", ' are '], ["'m ", ' am '], ["'d ", ' would '], ["'ve ", ' have '], ["'ll ", ' will '], ["can't ", ' can not '], ["don't ", ' do not']]
+        self.acronyms = [["'s ", ' is '], ["'re ", ' are '], ["'m ", ' am '], ["'d ", ' would '], ["'ve ", ' have '], ["'ll ", ' will '], ["can't ", ' can not '], ["don't ", ' do not'], ["gonna", "going to"]]
 
     # Event key for mainwindow
     # Kế thừa chỉ được thực hiện trong lớp con !!!
@@ -32,20 +35,19 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def ChooseIDToLoad(self):
         rowids = self.DictDB.get_rowid_from_sort_score()
         id = -1
-        if self.count == 0:
+        if self.count >=0 and self.count<=2:
             self.listen = False
             id = rowids[np.random.randint(10)][0]
             self.SetButtonIcon(self.ui.toolButton, 'edit')
             self.ui.addWordButtonToLayoutEng('Result')
             self.ui.toolButton_3.show()  
-        elif self.count == 3:
-            id = rowids[np.random.randint(10, len(rowids))][0]
+        elif self.count == 5:
+            id = rowids[np.random.randint(len(rowids))][0]
             self.listen = True
             self.ui.label.setText('Listen to type ...')
             self.SetButtonIcon(self.ui.toolButton, 'speak')
             self.TextToSpeech(self.DictDB.select_lang_by_rowid('ENG', id))
             self.ui.toolButton_3.hide()
-            self.listen = True
             self.count = -1
         else:
             id = rowids[np.random.randint(10, len(rowids))][0]
@@ -64,12 +66,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         # Tắt phím sửa câu tiếng anh, khi nào enter lineEdit thì mở lại
         self.ui.toolButton_3.setEnabled(False)
         self.ui.toolButton_4.setEnabled(False)
+        self.ui.toolButton_trans2.setEnabled(False)
 
     def ConvertAcronyms(self, sentence):
         for w1, w2 in self.acronyms:
             sentence = sentence.replace(w1, w2)
         return sentence
-
     
     def FillCharectInSentence(self, sentence):
         sentence = re.sub(r'[^\w\s\']', ' ', sentence)
@@ -200,9 +202,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
 app = QtWidgets.QApplication(sys.argv)
 appwindow = ApplicationWindow()
-    
 def main():
     appwindow.LoadEngSentence()
+    appwindow.firstStart = True
     appwindow.show()
     sys.exit(app.exec_())
 

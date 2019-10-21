@@ -6,8 +6,10 @@
 #
 # WARNING! All changes made in this file will be lost!
 from threading import Thread
+import threading
+from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5 import QtCore, QtGui, QtWidgets
-from dialog import *
+from dialog import *    
 from congratulation import *
 from VideoShow import *
 import re
@@ -16,6 +18,8 @@ import requests
 import urllib
 import functools
 import random
+from selenium_scrapping import Scraping
+
 
 # central widget sẽ là tham chiếu của tất cả các thành phần trong mainwindow
 # vertical layout sẽ add các layout con khác
@@ -32,6 +36,29 @@ class Ui_MainWindow(object):
         #self.uiDialog.setupUi(self.window) # kế thừa từ QDialog
             # na ná như bên lớp applycation trong learnenglish.py
         self.translated_word = ''
+        self.scraping = Scraping(0)    
+        self.st2_waiting = False
+        
+    def newKeyPressEvent(self, event):
+        if event.key() == Qt.Key_Q:
+            self.google_trans(self.lineEdit.text(), 'e2v')
+            self.getImageForWord(self.lineEdit.text())            
+
+        if event.key() == Qt.Key_A:
+            self.google_trans(self.lineEdit.text(), 'v2e')
+            self.getImageForWord(self.lineEdit.text())
+
+        if event.key() == Qt.Key_W and self.toolButton_trans2.isEnabled():
+            self.google_trans(self.parent.GetLang('ENG'), 'e2v')
+            self.getImageForWord(self.parent.GetLang('ENG'))
+        
+        if event.key() == Qt.Key_S:
+            if self.pressEnterTwiceLineEdit or self.parent.listen:
+                self.parent.TextToSpeech(self.parent.GetLang('ENG'))
+
+        if event.key() == Qt.Key_D and self.parent.s2t and not self.st2_waiting:
+            self.speak()
+
 
     def OpenVideo(self):
         self.uiVideo = VideoShow(self)
@@ -86,6 +113,36 @@ class Ui_MainWindow(object):
             font.setFamily("Time News Roman")
             word_button.setFont(font)
             layout.addWidget(word_button)
+
+    def google_trans(self, sentence, mode):
+        self.translated_word = ''
+        if sentence.replace(' ', '') == '':
+            return 
+        trsl, spelling, word_type_and_content, hint = self.scraping.google_translate(sentence, mode)
+        self.text_browser.clear()
+        self.text_browser.show()
+        self.text_browser.append(self.parent.setStyleTextHTML(trsl, color= '#005500', size = '14'))
+        if hint:
+            self.text_browser.append(self.parent.setStyleTextHTML(hint, color= '#ff0000', size = '10'))
+        if spelling:
+            self.text_browser.append(self.parent.setStyleTextHTML(spelling, color= '#ffaa00', size = '10'))
+        if word_type_and_content[0] and word_type_and_content[1]:
+            viet_word = True
+            for line in word_type_and_content[1]:
+                if line in word_type_and_content[0]:
+                    self.text_browser.append(self.parent.setStyleTextHTML(line, color= '#005500', size = '12', weight= '500'))
+                elif viet_word:
+                    self.text_browser.append(self.parent.setStyleTextHTML(line, color= '#5500ff', size = '10', style= 'italic'))
+                    viet_word = False
+                else:
+                    self.text_browser.append(self.parent.setStyleTextHTML(line, color= '#000000', size = '10'))
+                    viet_word = True
+        self.text_browser.moveCursor(QtGui.QTextCursor.Start)
+
+    def speak(self):
+        self.lineEdit.setText('')
+        self.lineEdit.setPlaceholderText('Speech to text >>> Listening ... <<<')
+        self.scraping.speech_to_text(self)
         
     def translate(self, word):
         # show text_browser and hz_image_eng
@@ -97,7 +154,6 @@ class Ui_MainWindow(object):
         self.text_browser.show()
         self.parent.EnableWidgetsInLayout(self.hz_image_eng, True)
         self.getImageForWord(word)
-        self.hz_image_eng
         self.text_browser.clear()
         word = re.sub(r"[^-'\w]", ' ', word).lower()
         word = word.replace('_', '-')
@@ -134,33 +190,38 @@ class Ui_MainWindow(object):
         self.text_browser.moveCursor(QtGui.QTextCursor.Start)
 
     def getImageForWord(self, word):
-        self.parent.deleteWidgetsInLayout(self.hz_image_eng)
-        page = requests.get('https://vn.images.search.yahoo.com/search/images;_ylt=AwrwJRgGagddlXoAonJtUwx.;_ylu=X3oDMTBsZ29xY3ZzBHNlYwNzZWFyY2gEc2xrA2J1dHRvbg--;_ylc=X1MDMjExNDczNzAwNQRfcgMyBGFjdG4DY2xrBGNzcmNwdmlkA2xUc2pLVEV3TGpKUmsyV1JYQl9DaUFKdU1UUXVNUUFBQUFCaG1UMEQEZnIDeWZwLXQEZnIyA3NhLWdwBGdwcmlkA3QwclBDM1FhVEFHSG5XdDZITWpneEEEbl9zdWdnAzAEb3JpZ2luA3ZuLmltYWdlcy5zZWFyY2gueWFob28uY29tBHBvcwMwBHBxc3RyAwRwcXN0cmwDBHFzdHJsAzgEcXVlcnkDdHdlZXplcnMEdF9zdG1wAzE1NjA3NjcwNzU-?p=%s&fr=yfp-t&fr2=sb-top-vn.images.search&ei=UTF-8&n=60&x=wrt'%
-                        (word))
-        soup = BeautifulSoup(page.content, 'html.parser')
-        images = soup.find_all('img')
-        images = [img.attrs['src'] for img in images if 'src' in img.attrs]
+        try:
+            self.parent.deleteWidgetsInLayout(self.hz_image_eng)
+            page = requests.get("https://vn.images.search.yahoo.com/search/images?fr=sfp&p=" + word + "&fr2=p%3As%2Cv%3Ai&.bcrumb=uKIyJ5aGvwE&save=0")
+            soup = BeautifulSoup(page.content, 'html.parser')
+            images = soup.find_all('img')
+            images = [img.attrs['src'] for img in images if 'src' in img.attrs]
+            if len(images)<4:
+                max = len(images)
+            else:
+                max = 4
 
-        if len(images)<4:
-            max = len(images)
-        else:
-            max = 4
-        for _ in range(max):
-            i = random.randint(0,len(images)-1)
-            data = urllib.request.urlopen(images[i]).read()
-            image = QtGui.QImage()
-            image.loadFromData(data)
-            lbl = QtWidgets.QLabel(self.centralwidget)
-            lbl.setPixmap(QtGui.QPixmap(image).scaled(200,200))
-            #lbl.setFixedSize(QtCore.QSize(200,200))
-            self.hz_image_eng.addWidget(lbl)
-            del images[i]
+            for _ in range(max):
+                i = random.randint(0,len(images)-1)
+                data = urllib.request.urlopen(images[i]).read()
+                image = QtGui.QImage()
+                image.loadFromData(data)
+                lbl = QtWidgets.QLabel(self.centralwidget)
+                lbl.setPixmap(QtGui.QPixmap(image).scaled(200,200))
+                #lbl.setFixedSize(QtCore.QSize(200,200))
+                self.hz_image_eng.addWidget(lbl)
+                del images[i]
+        except:
+            pass
 
 
     def show(self, result):
         self.toolButton_3.setEnabled(True)
         self.toolButton_4.setEnabled(True)
+        self.toolButton_trans2.setEnabled(True)
+
         self.pressEnterTwiceLineEdit = True
+
 
         # so khớp 2 kết quả
         # sửa sai lần hai cho các từ giống như như 's ~ is, 're ~ are ...
@@ -190,9 +251,10 @@ class Ui_MainWindow(object):
                 self.show(result)
                 return
             self.parent.BellRing(2)
-            self.progressBar.setProperty('value', self.progressBar.value() - 5)
-            self.parent.DictDB.update_score(self.parent.DictDB.get_score(result) - 1, result)
-            self.numTrueSentence-=1
+            if not self.parent.s2t:
+                self.progressBar.setProperty('value', self.progressBar.value() - 5)
+                self.parent.DictDB.update_score(self.parent.DictDB.get_score(result) - 1, result)
+                self.numTrueSentence-=1
             self.progressBar.setFormat('%s/20'%(str(self.numTrueSentence)))
             s1 = self.lineEdit.text().split(' ')
             s2 = self.parent.FillCharectInSentence(result).split(' ')
@@ -213,7 +275,7 @@ class Ui_MainWindow(object):
             if string == '': # chuỗi rỗng
                 QtWidgets.QMessageBox.information(None, 'WARNING', 'Please type corectly english translation !!!')
             else:
-                if self.parent.listen == True:
+                if self.parent.listen:
                     self.label.setText(self.parent.GetLang('VIE'))
                     self.parent.SetButtonIcon(self.toolButton, 'edit')
                     self.parent.listen = False
@@ -224,12 +286,30 @@ class Ui_MainWindow(object):
                 self.show(result)
                 self.parent.TextToSpeech(result)
         else: # lần enter thứ 2
-                self.parent.LoadEngSentence()
+                if self.parent.s2t:
+                    self.lineEdit.setPlaceholderText('Type english translation')
+                    self.parent.s2t = False
                 self.pressEnterTwiceLineEdit = False
                 self.lineEdit.setText('')
                 self.parent.EnableWidgetsInLayout(self.hz_image_eng, False)
                 self.text_browser.hide()
+                self.parent.LoadEngSentence()
+                self.parallel_s2t_threading()
                 # self.label_2.setStyleSheet('color: black;')    
+
+    def parallel_s2t_threading(self):
+        # self.worker = Worker()
+        self.thread = QThread(self.parent)
+        self.thread.started.connect(self.speech2text_shot) # <--new line, make sure work starts.
+        self.thread.start()
+
+    def speech2text_shot(self):
+        if np.random.randint(3) == 0 and self.parent.firstStart:
+            self.lineEdit.setReadOnly(True)
+            self.parent.s2t = True
+            self.speak()
+        else:
+            self.lineEdit.setReadOnly(False)
 
     def DeleteCouple(self, MainWindow):
         def delete():
@@ -241,7 +321,7 @@ class Ui_MainWindow(object):
 
 
     def setupUi(self, MainWindow):
-        
+        MainWindow.keyPressEvent = self.newKeyPressEvent      
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(603, 318)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -302,9 +382,8 @@ class Ui_MainWindow(object):
 
         self.toolButton = QtWidgets.QToolButton(self.centralwidget)
         self.toolButton.setIcon(icon)
-        self.toolButton.setIconSize(QtCore.QSize(32,32))
+        self.toolButton.setIconSize(QtCore.QSize(20,20))
         self.toolButton.setObjectName("toolButton")
-
         self.horizontalLayout.addWidget(self.toolButton)
 
         # Truyền tham số vào hàm sự kiện !!!
@@ -313,6 +392,8 @@ class Ui_MainWindow(object):
         self.toolButton.clicked.connect(self.OpenWindow('VIE'))
 
         self.lineEdit = QtWidgets.QLineEdit(self.centralwidget)
+        # self.lineEdit.keyPressEvent = self.newKeyPressEvent
+        # self.lineEdit.keyReleaseEvent = self.newKeyReleaseEvent
 
         self.horizontalLayout_2.addWidget(self.lineEdit)
 
@@ -337,9 +418,23 @@ class Ui_MainWindow(object):
 
         self.toolButton_2 = QtWidgets.QToolButton(self.centralwidget)
         self.toolButton_2.setIcon(icon2)
-        self.toolButton_2.setIconSize(QtCore.QSize(32,32))
+        self.toolButton_2.setIconSize(QtCore.QSize(20,20))
         self.toolButton_2.setObjectName("toolButton_2")
-        self.horizontalLayout_2.addWidget(self.toolButton_2)
+        icon_trans = QtGui.QIcon()
+        icon_trans.addPixmap(QtGui.QPixmap("assets/google_translate_icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+
+        self.toolButton_trans = QtWidgets.QToolButton(self.centralwidget)
+        self.toolButton_trans.setIcon(icon_trans)
+        self.toolButton_trans.setIconSize(QtCore.QSize(20,20))
+        self.toolButton_trans.setObjectName('toolButton_trans')
+        self.toolButton_trans.clicked.connect(lambda: self.google_trans(self.lineEdit.text(), 'e2v'))
+        
+        self.verLayA = QtWidgets.QVBoxLayout()
+        self.verLayA.setObjectName('verLayA')
+        self.verLayA.addWidget(self.toolButton_2)
+        self.verLayA.addWidget(self.toolButton_trans)
+
+        self.horizontalLayout_2.addLayout(self.verLayA)
 
         #Event toolButton_2
         self.toolButton_2.clicked.connect(self.showResult)
@@ -361,7 +456,7 @@ class Ui_MainWindow(object):
         
         self.toolButton_3 = QtWidgets.QToolButton(self.centralwidget)
         self.toolButton_3.setIcon(icon3)
-        self.toolButton_3.setIconSize(QtCore.QSize(32,32))
+        self.toolButton_3.setIconSize(QtCore.QSize(20,20))
         self.toolButton_3.setObjectName("toolButton_3")
 
         self.verticalLayout_2.addWidget(self.toolButton_3)
@@ -371,7 +466,7 @@ class Ui_MainWindow(object):
 
         self.toolButton_4 = QtWidgets.QToolButton(self.centralwidget)
         self.toolButton_4.setIcon(icon4)
-        self.toolButton_4.setIconSize(QtCore.QSize(32,32))
+        self.toolButton_4.setIconSize(QtCore.QSize(20,20))
         self.toolButton_4.setObjectName('toolButton_4')
 
         icon5 = QtGui.QIcon()
@@ -381,11 +476,16 @@ class Ui_MainWindow(object):
         self.toolButton_5.setIconSize(QtCore.QSize(16,16))
         self.toolButton_5.setObjectName('toolButton_5')
         self.toolButton_5.clicked.connect(self.DeleteCouple(MainWindow))
-
-
         self.toolButton_4.clicked.connect(self.OpenWindow('ENG'))
 
+        self.toolButton_trans2 = QtWidgets.QToolButton(self.centralwidget)
+        self.toolButton_trans2.setIcon(icon_trans)
+        self.toolButton_trans2.setIconSize(QtCore.QSize(20,20))
+        self.toolButton_trans2.setObjectName('toolButton_trans2')
+        self.toolButton_trans2.clicked.connect(lambda: self.google_trans(self.parent.GetLang('ENG'), 'e2v'))
+
         self.verticalLayout_2.addWidget(self.toolButton_4)
+        self.verticalLayout_2.addWidget(self.toolButton_trans2)
         self.verticalLayout_2.setAlignment(Qt.AlignRight)
 
         self.hz_vocabulary_eng = QtWidgets.QHBoxLayout()
@@ -445,5 +545,3 @@ class Ui_MainWindow(object):
         self.actionReload.setText(_translate("MainWindow", "Reload"))
         self.actionSave_sentence_source.setText(_translate("MainWindow", "Save sentence source"))
         self.actionVideo.setText(_translate("MainWindow", "Learn with Video"))
-
-

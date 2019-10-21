@@ -10,7 +10,7 @@ class SQLiteHelper:
         
     def open(self, name):
         try:
-            self.conn = sqlite3.connect(name)
+            self.conn = sqlite3.connect(name, check_same_thread=False)
             self.cursor = self.conn.cursor()
             print(sqlite3.version)
         except sqlite3.Error as e:

@@ -25,14 +25,15 @@ class VideoShow(QtWidgets.QWidget):
 
     def start(self):
         self.toolButton.setEnabled(False)
-        self.startTimeSubsInScroll = dict()
         self.listStartTime = []
         self.indexNextSub = 0
         self.isEnableSub = False
         self.isEnableSub2 = False
         self.isOpenedVideo = False
+        self.loadedPath = ['','',''] # video, sub1, sub2
         self.isEngOrVieOrTwiceSubLabel = 3
         self.buttonCtrlPressed = False
+        self.skipTime = 500
 
     # Tắt focus để bắt sự kiện button arrow !!!
     def setChildrenFocusPolicy (self, policy):
@@ -47,7 +48,8 @@ class VideoShow(QtWidgets.QWidget):
             self.buttonCtrlPressed = False
 
     def keyPressEvent(self, event):
-        print(self.buttonCtrlPressed)
+        #print(self.buttonCtrlPressed)
+        self.notificationVideo.setText('')
 
         if event.key() == Qt.Key_Control:
             self.buttonCtrlPressed = True
@@ -72,10 +74,10 @@ class VideoShow(QtWidgets.QWidget):
         if event.key() == Qt.Key_Left:
             self.backwardVideo()
 
-        if event.key() == Qt.Key_Comma:
-            self.backwarSub()
+        if event.key() == Qt.Key_Comma and not self.buttonCtrlPressed:
+            self.backwardSub()
 
-        if event.key() == Qt.Key_Period:
+        if event.key() == Qt.Key_Period and not self.buttonCtrlPressed:
             self.forwardSub()
         
         if event.key() == Qt.Key_E:
@@ -100,9 +102,17 @@ class VideoShow(QtWidgets.QWidget):
             self.fullScreen()
         
         modifiers = QtWidgets.QApplication.keyboardModifiers()
-        if modifiers == QtCore.Qt.ControlModifier and Qt.Key_S:
+        if modifiers == QtCore.Qt.ControlModifier and event.key() == Qt.Key_Comma:
+            print('skip -%d'%self.skipTime)
+            self.skipSub(-1)
+        
+        if modifiers == QtCore.Qt.ControlModifier and event.key() == Qt.Key_Period:
+            print('skip +%d'%self.skipTime)
+            self.skipSub(1)
+
+        if modifiers == QtCore.Qt.ControlModifier and event.key() == Qt.Key_S:
             self.saveCoupleFromButtonEvent()
-            
+
         # mouseMouve Event
     # def mouseMoveEvent(self, event):
     #     if self.frameSlider.isHidden():
@@ -155,12 +165,19 @@ class VideoShow(QtWidgets.QWidget):
             self.mediaPlayer.setPosition(self.listStartTime[self.indexNextSub][2])
             self.setStatusScrollArea()
 
-    def backwarSub(self):
+    def backwardSub(self):
         if self.isEnableSub and self.indexNextSub >= 2:
             self.indexNextSub -=2
             self.mediaPlayer.setPosition(self.listStartTime[self.indexNextSub][2])
             self.setStatusScrollArea()
-
+        
+    def skipSub(self, direction):
+        # if self.isEnableSub:
+        #     self.setStatusScrollArea()
+        for item in self.listStartTime:
+            item[2]+=self.skipTime*direction
+            item[3]+=self.skipTime*direction
+        self.notificationVideo.setText('skip %d'%(direction*self.skipTime))
 
     def calculateTime(self, subRipTime):
         time = str(subRipTime).replace(',', ':')
@@ -203,6 +220,7 @@ class VideoShow(QtWidgets.QWidget):
                 else:
                     QtWidgets.QMessageBox.information(None, 'WARNING', 'Couple already exist in revision')
             self.buttonCtrlPressed = False
+
     def eventSubCheckBox(self, checkbox):
         def event():
             self.saveCouple(checkbox)
@@ -220,8 +238,6 @@ class VideoShow(QtWidgets.QWidget):
         if self.isEnableSub:
             for item in self.listStartTime:
                 item[index].setEnabled(True)
-    
-
     
     def loadSubToScroll(self, fileName):
         subs = pysrt.open(fileName)
@@ -254,7 +270,6 @@ class VideoShow(QtWidgets.QWidget):
             horizontalLayoutScroll.addWidget(button,10)
             horizontalLayoutScroll.setContentsMargins(0, 0, 50, 0)  # left, top, right, bottom
             self.verticalScroll.addLayout(horizontalLayoutScroll)
-            self.startTimeSubsInScroll[str(startTime)] = index
             self.listStartTime.append([checkbox, button, startTime, endTime, value.start])
 
     def LoadOtherSub(self, fileName):
@@ -271,6 +286,7 @@ class VideoShow(QtWidgets.QWidget):
             self.actionOpenSub2.setEnabled(False)
             self.enableCheckBoxsOrButtonScroll(0)
             self.isEnableSub2 = True
+            self.loadedPath[2] = fileName
         else:
             QtWidgets.QMessageBox.information(None, 'WARNING', 'Please choose correctly sub compatible with engsub')
 
@@ -311,8 +327,26 @@ class VideoShow(QtWidgets.QWidget):
         buttons = [self.toolButton, self.toolButton_3, self.toolButton_4]
         map(lambda x: x.setEnabled(turn), buttons)
 
+    def openVid(self, fileName):
+        self.mediaPlayer.setMedia(QMediaContent(QUrl.fromLocalFile(fileName)))
+        self.toolButton.setEnabled(True)
+        self.enableCheckBoxsOrButtonScroll(1)
+        self.isOpenedVideo = True
+        self.loadedPath[0] = fileName
+        #self.turnOnOrOffButton(True)
+        self.play()
+
+    def openEngSub(self, fileName):
+        self.loadSubToScroll(fileName)
+        self.scrollArea.show()
+        self.isEnableSub = True
+        self.actionOpenSub2.setEnabled(True)
+        self.actionOpenSub1.setEnabled(False)
+        self.loadedPath[1] = fileName
+
+
     def openFile(self, title):
-        def open():
+        def open_file():
             choose = -1
             dialog = QtWidgets.QFileDialog()
             extension = ''
@@ -322,6 +356,8 @@ class VideoShow(QtWidgets.QWidget):
             elif title == 'Open Eng Sub':
                 extension = 'SRT (*.srt)'
                 choose = 2
+            elif title == 'Open Viewed Video':
+                pass
             else:
                 extension = 'SRT (*.srt)'
                 choose = 3
@@ -340,21 +376,28 @@ class VideoShow(QtWidgets.QWidget):
             if fileName != '':
                 #self.loadSubToScroll()
                 if title == 'Open Video':
-                    self.mediaPlayer.setMedia(QMediaContent(QUrl.fromLocalFile(fileName)))
-                    self.toolButton.setEnabled(True)
-                    self.enableCheckBoxsOrButtonScroll(1)
-                    self.isOpenedVideo = True
-                    #self.turnOnOrOffButton(True)
-                    self.play()
+                    self.openVid(fileName)
                 elif title == 'Open Eng Sub':
-                    self.loadSubToScroll(fileName)
-                    self.scrollArea.show()
-                    self.isEnableSub = True
-                    self.actionOpenSub2.setEnabled(True)
-                    self.actionOpenSub1.setEnabled(False)
+                    self.openEngSub(fileName)
                 else:
                     self.LoadOtherSub(fileName)
-        return open
+            
+            loaded = True
+            for p in self.loadedPath:
+                if p == '':
+                    loaded = False
+
+            if loaded:
+                with open('history.txt', 'w') as file:
+                    file.writelines(','.join(self.loadedPath))
+        return open_file
+
+    def openViewedVideo(self):
+        with open('history.txt', 'r') as file:
+            paths = file.readlines()[0].split(',')
+            self.openVid(paths[0])
+            self.openEngSub(paths[1])
+            self.LoadOtherSub(paths[2])
 
     def play(self):
         icon = QtGui.QIcon()
@@ -396,6 +439,11 @@ class VideoShow(QtWidgets.QWidget):
         self.oldIndexSub = self.indexNextSub
         if self.indexNextSub < len(self.listStartTime)-1:
             self.indexNextSub +=1
+
+    def durationChanged(self, duration):
+        self.positionSlider.setRange(0, duration)
+        self.maxTimeVideo = duration
+        self.labelDurationTime.setText(self.formatTimeToHMS(duration))
 
 
     def positionChanged(self, position):
@@ -441,10 +489,6 @@ class VideoShow(QtWidgets.QWidget):
         second = int(time-3600*hour - minute*60)
         return '%s:%s:%s'%(self.formatTime(str(hour)), self.formatTime(str(minute)), self.formatTime(str(second)))
         
-    def durationChanged(self, duration):
-        self.positionSlider.setRange(0, duration)
-        self.maxTimeVideo = duration
-        self.labelDurationTime.setText(self.formatTimeToHMS(duration))
 
     # sliderMoved có sẵn tham số position cho slider để tùy chỉnh video !!!
     def sliderMoved(self, position):
@@ -538,9 +582,12 @@ class VideoShow(QtWidgets.QWidget):
         self.actionOpenSub2 = QtWidgets.QAction(Form)
         self.actionOpenSub2.setObjectName('openSub2')
         self.actionOpenSub2.triggered.connect(self.openFile('Open Vie Sub'))
+        self.actionOpenViewedVideo = QtWidgets.QAction(Form)
+        self.actionOpenViewedVideo.triggered.connect(self.openViewedVideo)
         self.menuOpen.addAction(self.actionOpenVideo)
         self.menuOpen.addAction(self.actionOpenSub1)
         self.menuOpen.addAction(self.actionOpenSub2)
+        self.menuOpen.addAction(self.actionOpenViewedVideo)
         self.actionOpenVideo.triggered.connect(self.openFile('Open Video'))
         self.menubar.addAction(self.menuOpen.menuAction())
         self.menubar.addAction(self.menuOption.menuAction())
@@ -599,6 +646,17 @@ class VideoShow(QtWidgets.QWidget):
         #print(self.labelVideo.x(), self.labelVideo.y())
         #self.labelVideo.raise_()
         #self.videoWidget.raise_()
+
+        self.notificationVideo = QtWidgets.QLabel(self.graphicsView)
+        self.notificationVideo.setObjectName('notificationVideo')
+        self.notificationVideo.setText('')
+        self.notificationVideo.setStyleSheet("QLabel {font-size: 20px; opacity:1; color:white}")
+        self.notificationVideo.setFixedWidth(500)
+        self.notificationVideo.setFixedHeight(200)
+        self.notificationVideo.setAlignment(Qt.AlignCenter)
+        self.notificationVideo.setWordWrap(True)
+        self.notificationVideo.move(int(self.sizeMonitor[0]/2+200), int(self.sizeMonitor[1]*2/7))
+
         
 
         self.horizontalLayout.addWidget(self.scrollArea)
@@ -699,5 +757,6 @@ class VideoShow(QtWidgets.QWidget):
         self.actionOpenVideo.setText(_translate("Form", 'Open video'))
         self.actionOpenSub1.setText(_translate("Form", 'Open Eng Sub'))
         self.actionOpenSub2.setText(_translate("Form", 'Open Vie Sub'))
+        self.actionOpenViewedVideo.setText(_translate("Form", 'Open Viewed Video'))
 
 
