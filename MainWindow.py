@@ -38,6 +38,7 @@ class Ui_MainWindow(object):
         self.translated_word = ''
         self.scraping = Scraping(0)    
         self.st2_waiting = False
+        self.st2_status = True
         
     def newKeyPressEvent(self, event):
         if event.key() == Qt.Key_Q:
@@ -253,7 +254,9 @@ class Ui_MainWindow(object):
             self.parent.BellRing(2)
             if not self.parent.s2t:
                 self.progressBar.setProperty('value', self.progressBar.value() - 5)
-                self.parent.DictDB.update_score(self.parent.DictDB.get_score(result) - 1, result)
+                score = self.parent.DictDB.get_score(result)
+                score = score - 1 if score >-5 else score
+                self.parent.DictDB.update_score(score, result)
                 self.numTrueSentence-=1
             self.progressBar.setFormat('%s/20'%(str(self.numTrueSentence)))
             s1 = self.lineEdit.text().split(' ')
@@ -294,7 +297,8 @@ class Ui_MainWindow(object):
                 self.parent.EnableWidgetsInLayout(self.hz_image_eng, False)
                 self.text_browser.hide()
                 self.parent.LoadEngSentence()
-                self.parallel_s2t_threading()
+                if self.st2_status:
+                    self.parallel_s2t_threading()
                 # self.label_2.setStyleSheet('color: black;')    
 
     def parallel_s2t_threading(self):
@@ -319,6 +323,19 @@ class Ui_MainWindow(object):
                 self.parent.LoadEngSentence()                 
         return delete
 
+    def setStatusS2T(self):
+        icon = QtGui.QIcon()
+        if self.st2_status:
+            icon.addPixmap(QtGui.QPixmap("assets/speech_to_text_off.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+            self.toolButton_6.setIcon(icon)
+            self.st2_status = False
+            self.lineEdit.setReadOnly(False)
+        else:
+            icon.addPixmap(QtGui.QPixmap("assets/speech_to_text.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+            self.toolButton_6.setIcon(icon)
+            self.st2_status = True
+            if self.parent.s2t:
+                self.lineEdit.setReadOnly(True)
 
     def setupUi(self, MainWindow):
         MainWindow.keyPressEvent = self.newKeyPressEvent      
@@ -339,9 +356,11 @@ class Ui_MainWindow(object):
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_3.setObjectName('horizontalLayout_3')
 
+        self.horizontalLayout_4 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_4.setObjectName('horizontalLayout_3')
+
         self.verticalLayout_2 = QtWidgets.QVBoxLayout()
         self.verticalLayout_2.setObjectName('verticalLayout_2')
-
 
         self.label = QtWidgets.QLabel(self.centralwidget)
         self.label.setWordWrap(True)
@@ -349,6 +368,7 @@ class Ui_MainWindow(object):
         self.verticalLayout.addLayout(self.horizontalLayout)
         self.verticalLayout.addLayout(self.horizontalLayout_2)
         self.verticalLayout.addLayout(self.horizontalLayout_3)
+        self.verticalLayout.addLayout(self.horizontalLayout_4)
 
         self.text_browser = QtWidgets.QTextBrowser(self.centralwidget)
         self.text_browser.hide()
@@ -463,20 +483,12 @@ class Ui_MainWindow(object):
 
         icon4 = QtGui.QIcon()
         icon4.addPixmap(QtGui.QPixmap("assets/edit.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-
         self.toolButton_4 = QtWidgets.QToolButton(self.centralwidget)
         self.toolButton_4.setIcon(icon4)
         self.toolButton_4.setIconSize(QtCore.QSize(20,20))
         self.toolButton_4.setObjectName('toolButton_4')
-
-        icon5 = QtGui.QIcon()
-        icon5.addPixmap(QtGui.QPixmap("assets/delete.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.toolButton_5 = QtWidgets.QToolButton(self.centralwidget)
-        self.toolButton_5.setIcon(icon5)
-        self.toolButton_5.setIconSize(QtCore.QSize(16,16))
-        self.toolButton_5.setObjectName('toolButton_5')
-        self.toolButton_5.clicked.connect(self.DeleteCouple(MainWindow))
         self.toolButton_4.clicked.connect(self.OpenWindow('ENG'))
+
 
         self.toolButton_trans2 = QtWidgets.QToolButton(self.centralwidget)
         self.toolButton_trans2.setIcon(icon_trans)
@@ -495,11 +507,29 @@ class Ui_MainWindow(object):
         self.horizontalLayout_3.addLayout(self.hz_vocabulary_eng)
         self.horizontalLayout_3.addLayout(self.verticalLayout_2)
 
+        icon5 = QtGui.QIcon()
+        icon5.addPixmap(QtGui.QPixmap("assets/delete.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.toolButton_5 = QtWidgets.QToolButton(self.centralwidget)
+        self.toolButton_5.setIcon(icon5)
+        self.toolButton_5.setIconSize(QtCore.QSize(16,16))
+        self.toolButton_5.setObjectName('toolButton_5')
+        self.toolButton_5.clicked.connect(self.DeleteCouple(MainWindow))
+
+        icon6 = QtGui.QIcon()
+        icon6.addPixmap(QtGui.QPixmap("assets/speech_to_text.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.toolButton_6 = QtWidgets.QToolButton(self.centralwidget)
+        self.toolButton_6.setIcon(icon6)
+        self.toolButton_6.setIconSize(QtCore.QSize(16,16))
+        self.toolButton_6.setObjectName('toolButton_6')
+        self.toolButton_6.clicked.connect(self.setStatusS2T)
+        self.horizontalLayout_4.addWidget(self.toolButton_5)
+        self.horizontalLayout_4.addWidget(self.toolButton_6)
+        self.horizontalLayout_4.setAlignment(Qt.AlignLeft)
+
         self.hz_image_eng = QtWidgets.QHBoxLayout()
         self.hz_image_eng.setObjectName('horizontalLayoutImageEng')
         self.verticalLayout.addLayout(self.hz_image_eng)
         self.verticalLayout.addWidget(self.progressBar)
-        self.verticalLayout.addWidget(self.toolButton_5)
 
         self.toolButton_3.clicked.connect(lambda: self.parent.TextToSpeech(self.parent.GetLang('ENG')))
 

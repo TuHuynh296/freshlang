@@ -49,8 +49,7 @@ class Scraping():
                 hint = self.driver.find_element_by_class_name('gt-spell-correct-message').text.split('\n')
             except:
                 pass
-
-        translated = self.driver.find_element_by_xpath('/html/body/div[2]/div[1]/div[2]/div[1]/div[1]/div[2]/div[3]/div[1]/div[2]/div/span[1]').text
+        translated = self.driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[1]/div[2]/div[1]/div[1]/div[2]/div[3]/div[1]/div[2]/div/span[1]').text
 
         display_wordtype = self.driver.find_element_by_class_name('gt-cd-baf').get_attribute('style')
         display_hint = self.driver.find_element_by_id('spelling-correction').get_attribute('style')
